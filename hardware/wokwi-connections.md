@@ -1,23 +1,22 @@
 # Hardware Schematic — Wokwi (ESP32)
 
-This document provides the complete wiring guide for building the office energy monitor circuit in [Wokwi](https://wokwi.com/). The schematic covers **one representative room** (2 fans + 3 lights = 5 devices), as allowed by the problem statement.
+A minimal Wokwi simulation showing **one representative room** (2 fans + 3 lights = 5 devices), as allowed by the problem statement. Only Wokwi-available parts are used.
 
 ---
 
 ## Components Needed (Wokwi)
 
-| # | Component | Quantity | Notes |
-|---|-----------|----------|-------|
-| 1 | ESP32 DevKit V1 | 1 | Microcontroller with WiFi |
-| 2 | Relay Module (5V, 1-channel) | 5 | One per device (SRD-05VDC-SL-C) |
-| 3 | ACS712 Current Sensor (5A) | 5 | One per device |
-| 4 | LED (any color) | 3 | Simulates lights |
-| 5 | DC Motor | 2 | Simulates fans |
-| 6 | Push Button | 2 | Manual override |
-| 7 | I2C LCD 16×2 | 1 | Live status display |
-| 8 | 220Ω Resistor | 3 | For LEDs |
-| 9 | 10kΩ Resistor | 2 | Pull-down for buttons |
-| 10 | Breadboard + Jumper Wires | — | For connections |
+| # | Component | Wokwi Part | Quantity | Notes |
+|---|-----------|------------|----------|-------|
+| 1 | ESP32 DevKit V1 | `board-esp32-devkit-v1` | 1 | Microcontroller with WiFi |
+| 2 | Relay Module | `wokwi-relay-module` | 5 | One per device |
+| 3 | LED (Blue) | `wokwi-led` | 2 | Simulates fans |
+| 4 | LED (Yellow) | `wokwi-led` | 3 | Simulates lights |
+| 5 | Push Button | `wokwi-pushbutton` | 1 | Manual override (toggle Fan 1) |
+| 6 | I2C LCD 16×2 | `wokwi-lcd1602` | 1 | Live status display |
+| 7 | 220Ω Resistor | `wokwi-resistor` | 5 | For LEDs |
+| 8 | 10kΩ Resistor | `wokwi-resistor` | 1 | Pull-down for button |
+| 9 | Breadboard | `breadboard` | 1 | For connections |
 
 ---
 
@@ -26,24 +25,16 @@ This document provides the complete wiring guide for building the office energy 
 | ESP32 Pin | Connected To | Purpose |
 |-----------|-------------|---------|
 | GPIO 23 | Relay 1 IN | Control Fan 1 |
-| GPIO 22 | Relay 2 IN | Control Fan 2 |
-| GPIO 21 | Relay 3 IN | Control Light 1 |
+| GPIO 5  | Relay 2 IN | Control Fan 2 |
+| GPIO 4  | Relay 3 IN | Control Light 1 |
 | GPIO 19 | Relay 4 IN | Control Light 2 |
 | GPIO 18 | Relay 5 IN | Control Light 3 |
-| GPIO 34 | ACS712 #1 OUT | Read Fan 1 current (ADC1, input only) |
-| GPIO 35 | ACS712 #2 OUT | Read Fan 2 current (ADC1, input only) |
-| GPIO 32 | ACS712 #3 OUT | Read Light 1 current (ADC1) |
-| GPIO 33 | ACS712 #4 OUT | Read Light 2 current (ADC1) |
-| GPIO 25 | ACS712 #5 OUT | Read Light 3 current (ADC2) |
-| GPIO 26 | Button 1 → 3V3 | Toggle Fan 1 (manual override) |
-| GPIO 27 | Button 2 → 3V3 | Toggle Light 1 (manual override) |
-| GPIO 16 | LCD SDA (I2C) | LCD data line |
-| GPIO 17 | LCD SCL (I2C) | LCD clock line |
-| 3V3 | Relay VCC, ACS712 VCC, Button 3V3 | 3.3V power |
+| GPIO 26 | Button → 3V3 | Toggle Fan 1 (manual override) |
+| GPIO 21 | LCD SDA (I2C) | LCD data line (default I2C SDA) |
+| GPIO 22 | LCD SCL (I2C) | LCD clock line (default I2C SCL) |
+| 3V3 | Button 3V3 | 3.3V for button |
 | GND | All GND pins | Common ground |
-| VIN (5V) | LCD VCC, Relay COM | 5V supply |
-
-> **Note:** ESP32 GPIO 34 and 35 are input-only pins — perfect for ADC reads from ACS712 sensors.
+| VIN (5V) | LCD VCC, Relay VCC, Relay COM | 5V supply |
 
 ---
 
@@ -51,57 +42,38 @@ This document provides the complete wiring guide for building the office energy 
 
 ### 1. Relay Modules (×5)
 
-Each relay module has 6 pins: `VCC`, `GND`, `IN`, `COM`, `NO` (Normally Open), `NC` (Normally Closed).
+Each relay module has pins: `VCC`, `GND`, `IN`, `COM`, `NO` (Normally Open), `NC` (Normally Closed).
 
 **For each relay:**
 - `VCC` → ESP32 `VIN` (5V)
 - `GND` → ESP32 `GND`
 - `IN` → ESP32 GPIO pin (see pin mapping table)
-- `COM` → ESP32 `VIN` (5V) — this is the power that flows to the device when relay is active
-- `NO` → Device positive terminal (LED anode via resistor, or DC motor +)
-- Device negative → ESP32 `GND`
+- `COM` → ESP32 `VIN` (5V)
+- `NO` → LED anode (via 220Ω resistor)
 
-### 2. ACS712 Current Sensors (×5)
+### 2. LEDs (×5) — Simulating Fans & Lights
 
-Each ACS712 has pins: `VCC`, `GND`, `OUT`, and two screw terminals `IP+` and `IP-` for current measurement.
-
-**For each ACS712:**
-- `VCC` → ESP32 `VIN` (5V)
-- `GND` → ESP32 `GND`
-- `OUT` → ESP32 ADC pin (see pin mapping table)
-- `IP+` → Connect in series between Relay `NO` and Device positive
-- `IP-` → Device positive terminal
-
-> In Wokwi simulation, you can simplify by connecting the ACS712 `OUT` directly to the ESP32 ADC pin and using simulated values if the sensor model isn't available.
-
-### 3. LEDs (×3) — Simulating Lights
+- **2 Blue LEDs** = Fans (Relay 1 & 2)
+- **3 Yellow LEDs** = Lights (Relay 3, 4 & 5)
 
 For each LED:
 - Anode (long leg) → 220Ω resistor → Relay `NO` terminal
 - Cathode (short leg) → ESP32 `GND`
 
-### 4. DC Motors (×2) — Simulating Fans
+### 3. Push Button (×1) — Manual Override
 
-For each motor:
-- Positive terminal → Relay `NO` terminal
-- Negative terminal → ESP32 `GND`
-
-### 5. Push Buttons (×2) — Manual Override
-
-For each button:
-- One leg → ESP32 GPIO pin (26 or 27)
+- One leg → ESP32 `GPIO 26`
 - Same GPIO → 10kΩ resistor → ESP32 `GND` (pull-down)
 - Other leg → ESP32 `3V3`
 
 When pressed: GPIO reads HIGH (3.3V). When released: GPIO reads LOW (0V via pull-down).
 
-### 6. I2C LCD 16×2
+### 4. I2C LCD 16×2
 
-- `SDA` → ESP32 `GPIO 16`
-- `SCL` → ESP32 `GPIO 17`
+- `SDA` → ESP32 `GPIO 21` (default I2C SDA)
+- `SCL` → ESP32 `GPIO 22` (default I2C SCL)
 - `VCC` → ESP32 `VIN` (5V)
 - `GND` → ESP32 `GND`
-- `ADDR` → Leave unconnected (default 0x27)
 
 ---
 
@@ -112,13 +84,13 @@ ESP32 VIN (5V)
     │
     ├── Relay COM (×5)
     │       │
-    │       └── [Relay closed] ── ACS712 IP+ ── ACS712 IP- ── Device (+)
-    │                                                            │
-    │                                                       LED/Motor
-    │                                                            │
-    │                                                       Device (−)
-    │                                                            │
-    └──────────────────────────────────────────────────────── GND
+    │       └── [Relay closed] ── 220Ω resistor ── LED Anode
+    │                                              │
+    │                                           LED (Fan/Light)
+    │                                              │
+    │                                         LED Cathode
+    │                                              │
+    └──────────────────────────────────────────── GND
 ```
 
 ---
@@ -126,11 +98,10 @@ ESP32 VIN (5V)
 ## ESP32 Firmware Code
 
 The following code goes into `main.cpp` in Wokwi. It:
-1. Connects to WiFi
+1. Connects to WiFi (Wokwi-GUEST)
 2. Controls relays (device on/off)
-3. Reads ACS712 current sensors
-4. Displays status on LCD
-5. Sends data to the backend via HTTP POST
+3. Displays status on LCD
+4. Sends device data to the backend via HTTP POST
 
 ```cpp
 #include <WiFi.h>
@@ -138,17 +109,16 @@ The following code goes into `main.cpp` in Wokwi. It:
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-// WiFi credentials
-const char* WIFI_SSID = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+// WiFi credentials — Wokwi built-in WiFi
+const char* WIFI_SSID = "Wokwi-GUEST";
+const char* WIFI_PASSWORD = "";
 
-// Backend API URL
-const char* BACKEND_URL = "http://YOUR_SERVER_IP:3000/api/devices";
+// Backend API URL (change to your machine's IP)
+const char* BACKEND_URL = "http://YOUR_IP:3000/api/devices";
 
 // Pin definitions
-const int RELAY_PINS[5] = {23, 22, 21, 19, 18};
-const int ACS712_PINS[5] = {34, 35, 32, 33, 25};
-const int BUTTON_PINS[2] = {26, 27};
+const int RELAY_PINS[5] = {23, 5, 4, 19, 18};
+const int BUTTON_PIN = 26;
 
 // Device names
 const char* DEVICE_NAMES[5] = {"Fan 1", "Fan 2", "Light 1", "Light 2", "Light 3"};
@@ -174,13 +144,11 @@ void setup() {
     digitalWrite(RELAY_PINS[i], LOW);
   }
 
-  // Initialize buttons
-  for (int i = 0; i < 2; i++) {
-    pinMode(BUTTON_PINS[i], INPUT);
-  }
+  // Initialize button
+  pinMode(BUTTON_PIN, INPUT);
 
   // Initialize LCD
-  Wire.begin(16, 17);
+  Wire.begin(21, 22); // Default ESP32 I2C pins: SDA=21, SCL=22
   lcd.init();
   lcd.backlight();
   lcd.setCursor(0, 0);
@@ -206,13 +174,9 @@ void setup() {
 }
 
 void loop() {
-  // Check buttons for manual override
-  if (digitalRead(BUTTON_PINS[0]) == HIGH) {
+  // Check button for manual override (toggle Fan 1)
+  if (digitalRead(BUTTON_PIN) == HIGH) {
     toggleDevice(0);
-    delay(300); // Debounce
-  }
-  if (digitalRead(BUTTON_PINS[1]) == HIGH) {
-    toggleDevice(2);
     delay(300); // Debounce
   }
 
@@ -231,24 +195,10 @@ void toggleDevice(int index) {
                 deviceStates[index] ? "ON" : "OFF");
 }
 
-float readCurrent(int pin) {
-  int adcValue = analogRead(pin);
-  // Convert ADC to voltage (ESP32: 0-4095 → 0-3.3V)
-  float voltage = (adcValue / 4095.0) * 3.3;
-  // ACS712: 2.5V = 0A, 185mV/A (for 5A version)
-  float current = (voltage - 2.5) / 0.185;
-  if (current < 0) current = 0;
-  return current;
-}
-
 float calculatePower(int index) {
   if (!deviceStates[index]) return 0;
-  float current = readCurrent(ACS712_PINS[index]);
-  // Simulated 220V AC
-  float power = 220.0 * current;
-  // Fallback to rated wattage if reading is too low
-  if (power < 1.0) power = DEVICE_WATTAGE[index];
-  return power;
+  // Return rated wattage (no current sensor in simulation)
+  return DEVICE_WATTAGE[index];
 }
 
 void sendDeviceData() {
@@ -300,29 +250,34 @@ void updateLCD() {
 
 ## How to Build in Wokwi
 
-1. Go to [wokwi.com](https://wokwi.com/) and create a new project
-2. Select **ESP32** as the board
-3. Add components from the parts library:
-   - 5× Relay Module
-   - 5× ACS712 (or use analog voltage sources as substitute)
-   - 3× LED
-   - 2× DC Motor
-   - 2× Push Button
-   - 1× I2C LCD 16×2
-   - Resistors (220Ω ×3, 10kΩ ×2)
+1. Go to [wokwi.com/projects/new/esp32](https://wokwi.com/projects/new/esp32)
+2. The ESP32 board is already placed — keep it
+3. Click the **"+" button** to add parts. Add:
+   - 5× Relay Module (`wokwi-relay-module`)
+   - 2× Blue LED (fans)
+   - 3× Yellow LED (lights)
+   - 1× Push Button
+   - 1× LCD 1602 (I2C mode)
+   - 5× 220Ω Resistor
+   - 1× 10kΩ Resistor
+   - 1× Breadboard
 4. Wire everything according to the pin mapping table above
 5. Paste the firmware code into `main.cpp`
-6. Update `WIFI_SSID`, `WIFI_PASSWORD`, and `BACKEND_URL` in the code
-7. Start simulation
-
-> **Wokwi Tip:** If ACS712 is not available in Wokwi's parts library, use a potentiometer connected to the ADC pins to simulate varying current readings.
+6. Create a file `libraries.txt` with:
+   ```
+   LiquidCrystal_I2C
+   ```
+7. Click the **green play button** (▶) to start simulation
+8. Press the push button to toggle Fan 1 on/off
+9. The LCD shows active device count and total power
+10. Save the project and copy the URL for your submission
 
 ---
 
 ## Electrical Reasoning
 
-- **Relays** are used because ESP32 GPIO outputs 3.3V, but devices (fans/lights) in real life run on 220V AC. The relay acts as a switch controlled by the low-voltage ESP32.
-- **ACS712** measures AC/DC current non-invasively. It outputs an analog voltage proportional to the current, which the ESP32 reads via its ADC.
-- **Pull-down resistors** on buttons ensure a clean LOW signal when not pressed, preventing floating pin issues.
-- **I2C LCD** uses only 2 data pins (SDA + SCL), conserving GPIO pins for relays and sensors.
-- **GPIO 34/35** are input-only on ESP32 — ideal for ADC reads since they don't need to drive any output.
+- **Relays** are used because ESP32 GPIO outputs 3.3V, but real devices (fans/lights) run on 220V AC. The relay acts as a switch controlled by the low-voltage ESP32.
+- **LEDs** simulate the devices in Wokwi — blue for fans, yellow for lights. In a real deployment, these would be actual fans and light fixtures connected through the relay NO terminals.
+- **Pull-down resistor** on the button ensures a clean LOW signal when not pressed, preventing floating pin issues.
+- **I2C LCD** uses only 2 data pins (SDA=21, SCL=22), the ESP32's default I2C pins, conserving GPIO pins for relays.
+- **No current sensor in simulation** — the problem statement says current sensing is optional. Power draw is reported as rated wattage (60W for fans, 15W for lights). In a real circuit, an ACS712 or similar sensor would be added in series with each device.
