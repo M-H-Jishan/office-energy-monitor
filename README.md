@@ -9,7 +9,7 @@ Real-time office energy monitoring system with a web dashboard, Discord bot, and
 - **Proactive Alerts** — Bot posts to Discord when devices are left on after hours or all devices in a room are on for 2+ hours
 - **Shared Backend** — Single MySQL database as the source of truth for both dashboard and bot
 - **Device Simulator** — Automatically toggles 15 devices (3 rooms × 2 fans + 3 lights) with realistic wattage
-- **Hardware Schematic** — Complete ESP32 wiring guide for Wokwi with relays, current sensors, and LCD display
+- **Hardware Schematic** — Minimal ESP32 Wokwi circuit with 5 relays, LEDs, push buttons, and I2C LCD display
 
 ## Tech Stack
 
@@ -111,7 +111,7 @@ office-energy-monitor/
 │   ├── schema.prisma     # Database schema
 │   └── seed.ts           # Database seeder
 ├── hardware/
-│   └── wokwi-connections.md  # ESP32 wiring guide
+│   └── wokwi/              # ESP32 Wokwi simulation (diagram.json, main.cpp)
 ├── diagrams/
 │   └── system-diagram.md     # Architecture diagram (SVG)
 └── .env.example
@@ -141,11 +141,12 @@ office-energy-monitor/
 
 ## Hardware Schematic
 
-See [`hardware/wokwi-connections.md`](hardware/wokwi-connections.md) for the complete ESP32 wiring guide including:
-- Pin mapping table
-- Step-by-step wiring instructions
-- ESP32 firmware code (Arduino C++)
-- Wokwi setup instructions
+The Wokwi simulation files are in [`hardware/wokwi/`](hardware/wokwi/):
+- `diagram.json` — Circuit layout (ESP32 + 5 relays + 5 LEDs + LCD + 5 buttons)
+- `main.cpp` — ESP32 firmware (Arduino C++)
+- `libraries.txt` — Arduino library dependencies
+
+**Wokwi controls:** Q (Fan 1), W (Light 1), E (Fan 2), R (Light 2), T (Light 3)
 
 ## System Diagram
 
@@ -159,7 +160,7 @@ See [`diagrams/system-diagram.md`](diagrams/system-diagram.md) for the high-leve
                                                     ┌───────────────┴───────────────┐
                                                     ↓                               ↓
                                             [Web Dashboard]                  [Discord Bot]
-                                            (SSE + REST)                     (Gemini API)
+                                            (SSE + REST)                     (Groq API)
                                                     ↓                               ↓
                                             [User's Browser]                 [Discord Server]
 ```
