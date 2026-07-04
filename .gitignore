@@ -3,3 +3,6 @@ node_modules
 .env
 *.log
 dist
+
+hardware/wokwi-connections.md
+hardware/real-hardware-guide.md
