@@ -8,11 +8,12 @@ const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASSWORD = "";
 
 // Backend API URL (change to your machine's IP)
-const char* BACKEND_URL = "http://YOUR_IP:3000/api/devices";
+const char* BACKEND_URL = "http://127.0.0.1:42571/api/devices";
 
 // Pin definitions
 const int RELAY_PINS[5] = {23, 5, 4, 19, 18};
-const int BUTTON_PIN = 26;
+const int BUTTON_PINS[5] = {26, 25, 27, 15, 14};
+// Fan1=D26, Fan2=D25, Light1=D27, Light2=D15, Light3=D14
 
 // Device info
 const char* DEVICE_NAMES[5] = {"Fan 1", "Fan 2", "Light 1", "Light 2", "Light 3"};
@@ -31,10 +32,12 @@ void setup() {
 
   for (int i = 0; i < 5; i++) {
     pinMode(RELAY_PINS[i], OUTPUT);
-    digitalWrite(RELAY_PINS[i], LOW);
+    digitalWrite(RELAY_PINS[i], LOW); // npn: LOW = OFF (COM->NC)
   }
 
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  for (int i = 0; i < 5; i++) {
+    pinMode(BUTTON_PINS[i], INPUT_PULLUP);
+  }
 
   Wire.begin(21, 22);
   lcd.init();
@@ -61,9 +64,19 @@ void setup() {
 }
 
 void loop() {
-  if (digitalRead(BUTTON_PIN) == LOW) {
-    toggleDevice(0);
-    delay(300);
+  static bool lastBtnState[5] = {HIGH, HIGH, HIGH, HIGH, HIGH};
+
+  for (int i = 0; i < 5; i++) {
+    bool btnState = digitalRead(BUTTON_PINS[i]);
+    if (lastBtnState[i] == HIGH && btnState == LOW) {
+      delay(10);
+      btnState = digitalRead(BUTTON_PINS[i]);
+      if (btnState == LOW) {
+        toggleDevice(i);
+        updateLCD();
+      }
+    }
+    lastBtnState[i] = btnState;
   }
 
   if (millis() - lastUpdate >= UPDATE_INTERVAL) {
@@ -75,7 +88,7 @@ void loop() {
 
 void toggleDevice(int index) {
   deviceStates[index] = !deviceStates[index];
-  digitalWrite(RELAY_PINS[index], deviceStates[index] ? HIGH : LOW);
+  digitalWrite(RELAY_PINS[index], deviceStates[index] ? HIGH : LOW); // npn: HIGH=ON (COM->NO), LOW=OFF (COM->NC)
   Serial.printf("Toggled %s: %s\n", DEVICE_NAMES[index],
                 deviceStates[index] ? "ON" : "OFF");
 }
@@ -121,9 +134,9 @@ void updateLCD() {
     }
   }
 
-  lcd.clear();
+  // No lcd.clear() — it's slow on I2C. Just overwrite in place.
   lcd.setCursor(0, 0);
-  lcd.printf("Active: %d/5", onCount);
+  lcd.printf("Active: %d/5   ", onCount);
   lcd.setCursor(0, 1);
-  lcd.printf("Power: %.0fW", totalPower);
+  lcd.printf("Power: %.0fW   ", totalPower);
 }
