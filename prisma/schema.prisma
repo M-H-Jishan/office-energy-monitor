@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Room {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  devices   Device[]
+  alerts    Alert[]
+}
+
+model Device {
+  id            Int       @id @default(autoincrement())
+  roomId        Int
+  room          Room      @relation(fields: [roomId], references: [id])
+  name          String
+  type          String    // "fan" or "light"
+  status        Boolean   @default(false) // true = ON, false = OFF
+  powerDraw     Float     // Wattage when ON
+  lastChangedAt DateTime  @default(now())
+}
+
+model Alert {
+  id         Int       @id @default(autoincrement())
+  type       String    // "after_hours", "all_on_2hr"
+  message    String
+  roomId     Int?
+  room       Room?     @relation(fields: [roomId], references: [id])
+  deviceId   Int?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+}
+
+model UsageLog {
+  id         Int       @id @default(autoincrement())
+  timestamp  DateTime  @default(now())
+  totalWatts Float
+}
